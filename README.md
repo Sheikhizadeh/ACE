@@ -24,6 +24,7 @@ where InputFile(s) can be either a FASTA or FASTQ file and G is the estimated ge
 length (in bp). ACE produces file(s) with .corrected extension.
 
 (C) 2014, Siavash Sheikhizadeh
+
     Bioinformatics Group, Wageningen University
     e-mail: siavash.sheikhizadehanari@wur.nl
 
