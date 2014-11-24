@@ -616,7 +616,6 @@ void Initialize()
       root[i][j]=0;
   }
   cout<<"Genome = " << G << "bp\n"<< "Read = " << L << "bp\nCoverage = " << cov << "\nPrefix length = "<<p1_len<< "\n...............................\n\n"<<flush;
-  cout<<infile1<<endl<<outfile1<<endl<<flush;
 }
 //,,,,,,,,,,,,,,,,,,,,,,,,,,,,, To convert the integer prefix to the character_string prefix ,,,,,,,,,,,,,,,,
 char* code(char* pc, int prefix)
