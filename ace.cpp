@@ -1,6 +1,6 @@
-#include <malloc.h>
 #include <unistd.h> 
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <sys/time.h>
 #include <stdio.h>
@@ -8,8 +8,17 @@
 #include <stdlib.h>
 #include <math.h>
 #include <omp.h>
-#include <sys/sysinfo.h>
 #include <bitset>
+
+#ifdef __linux__
+#include <malloc.h>
+#include <sys/sysinfo.h>
+#endif
+
+#ifdef __APPLE__
+#include <sys/sysctl.h>
+#define malloc_trim(x)	{}
+#endif
 
 using namespace std;
 
@@ -68,7 +77,10 @@ class Read
   }
 };
 // Some global variables
+#ifdef __linux__
 struct sysinfo info;
+#endif
+
 int Ks[8];
 double Foot,MaxFoot,cov,decrs,incrs;
 char sym[]={ 'A', 'C', 'G', 'T' };
@@ -130,33 +142,33 @@ void insertF(long r,  long loc, int x)
   for (number = 0, i = cr+1; i < t; ++i)
     number = number * 4 + Reads[r]->seq[loc + myp + i - 1];
   //number %= size;
-    if(root[x][number]==0)
-      root[x][number]=new node();
-    v = root[x][number];
-    for (; i <= myk; ++i)
+  if(root[x][number]==0)
+    root[x][number]=new node();
+  v = root[x][number];
+  for (; i <= myk; ++i)
+  {
+    j = Reads[r]->seq[loc + myp + i - 1];
+    if (!v->children[j])
+      v->children[j] = new node(v);
+    v = v->children[j];
+  }
+  if (v->children[0] == 0)
+  {
+    if (first[x])
     {
-      j = Reads[r]->seq[loc + myp + i - 1];
-      if (!v->children[j])
-	v->children[j] = new node(v);
-      v = v->children[j];
+      first[x] = false;
+      prev[x] = level[x] = v;
     }
-    if (v->children[0] == 0)
+    else
     {
-      if (first[x])
-      {
-	first[x] = false;
-	prev[x] = level[x] = v;
-      }
-      else
-      {
-	prev[x]->children[3] = v;
-	prev[x] = v;
-	v->children[3] = 0;
-      }
+      prev[x]->children[3] = v;
+      prev[x] = v;
+      v->children[3] = 0;
     }
-    v->children[0]=(node *)(((long)v->children[0])+1);
-    v->children[1]=(node *)(r);
-    v->children[2]=(node *)(loc);
+  }
+  v->children[0]=(node *)(((long)v->children[0])+1);
+  v->children[1]=(node *)(r);
+  v->children[2]=(node *)(loc);
 }
 // This function inserts the reverse-complement spelling of a k_mer into the trie.
 // "r" is the number of the read to whom the k_mer belongs, and "loc" its location in that read.
@@ -169,33 +181,33 @@ void insertR(long r,  long loc, int x)
   for (number = 0, i = cr+1; i < t; ++i)
     number = number * 4 + (3 - Reads[r]->seq[-loc - myp - i + 1]);
   //number %= size;
-    if(root[x][number]==0)
-      root[x][number]=new node();
-    v = root[x][number];
-    for (; i <= myk; ++i)
+  if(root[x][number]==0)
+    root[x][number]=new node();
+  v = root[x][number];
+  for (; i <= myk; ++i)
+  {
+    j = (3 - Reads[r]->seq[-loc - myp - i + 1]) ;
+    if (!v->children[j])
+      v->children[j] = new node(v);
+    v = v->children[j];
+  }
+  if (v->children[0] == 0)
+  {
+    if (first[x])
     {
-      j = (3 - Reads[r]->seq[-loc - myp - i + 1]) ;
-      if (!v->children[j])
-	v->children[j] = new node(v);
-      v = v->children[j];
+      first[x] = false;
+      prev[x] = level[x] = v;
     }
-    if (v->children[0] == 0)
+    else
     {
-      if (first[x])
-      {
-	first[x] = false;
-	prev[x] = level[x] = v;
-      }
-      else
-      {
-	prev[x]->children[3] = v;
-	prev[x] = v;
-	v->children[3] = 0;
-      }
+      prev[x]->children[3] = v;
+      prev[x] = v;
+      v->children[3] = 0;
     }
-    v->children[0]=(node *)(((long)v->children[0])+1);
-    v->children[1]=(node *)(r);
-    v->children[2]=(node *)(loc);
+  }
+  v->children[0]=(node *)(((long)v->children[0])+1);
+  v->children[1]=(node *)(r);
+  v->children[2]=(node *)(loc);
 }
 // This function creates the subtrie which will contain all K_mers beginning with "prefix".  
 // "prefix" is the integer equivalent of the real character string prefix, e.g. 0 for AA, 1 for AC and 15 for TT. 
@@ -234,7 +246,7 @@ void detect_and_correct(int pfx)
   #pragma omp parallel
   {
     int y=omp_get_thread_num();
-    bool found,newone;
+    bool found;
     node* hpoint;
     node* branch;
     node* scan;
@@ -247,7 +259,7 @@ void detect_and_correct(int pfx)
     {
       if ( ((long)scan->children[0]) > 0 && ((long)scan->children[0]) <= foot)
       {
-	found = newone = false;
+	found = false;
 	branch = scan;
 	for (i = myk - 1; i >= t && !found; --i)
 	{
@@ -275,12 +287,10 @@ void detect_and_correct(int pfx)
 		loc=location + myp + i;
 		if(Reads[r]->seq[loc]!=s[i])
 		{
-		  newone=true;
 		  #pragma omp critical (c1) 
 		  {
 		    Reads[r]->seq[loc] = s[i];
-		    ++count;
-		    make(r,y);
+		    Reads[r]->seq[0] = phase ;
 		  }
 		}
 	      }
@@ -289,12 +299,10 @@ void detect_and_correct(int pfx)
 		loc=-location - myp - i;
 		if(Reads[r]->seq[loc]!=3-s[i])
 		{
-		  newone=true;
-		  #pragma omp critical (c1) 
+		  #pragma omp critical (c2) 
 		  {
 		    Reads[r]->seq[loc] = 3-s[i];
-		    ++count;
-		    make(r,y);
+		    Reads[r]->seq[0] = phase ;
 		  }
 		}
 	      }
@@ -302,7 +310,8 @@ void detect_and_correct(int pfx)
 	    s[i] = tmp1;
 	  }//for l
 	}//for i
-	//  2-change search just lunched from rounds second on because its very time-consuming to run it on the first round where the bank contains many errors                        
+	//  2-change search just lunches from second round on 
+	//  because its very time-consuming to run it on the first round where the bank contains many errors                        
 	if(phase>1) 
 	{                        
 	  
@@ -340,21 +349,19 @@ void detect_and_correct(int pfx)
 		      loc=location + myp + i;
 		      if(Reads[r]->seq[loc]!=s[i])
 		      {
-			newone=true;
-			#pragma omp critical (c1) 
+			#pragma omp critical (c3) 
 			{
 			  Reads[r]->seq[loc] = s[i];
-			  ++count;
+			  Reads[r]->seq[0] = phase ;
 			}
 		      }
 		      loc=location + myp + j;
 		      if(Reads[r]->seq[loc]!=s[j])
 		      {
-			newone=true;
-			#pragma omp critical (c3) 
+			#pragma omp critical (c4) 
 			{
 			  Reads[r]->seq[loc] = s[j];
-			  ++count;
+			  Reads[r]->seq[0] = phase ;
 			}
 		      }
 		    }
@@ -363,31 +370,22 @@ void detect_and_correct(int pfx)
 		      loc=-location - myp - i;
 		      if(Reads[r]->seq[loc]!=3-s[i])
 		      {
-			newone=true;
-			#pragma omp critical (c2) 
+			#pragma omp critical (c5) 
 			{
 			  Reads[r]->seq[loc] = 3-s[i];
-			  ++count;
+			  Reads[r]->seq[0] = phase ;
 			}
 		      }
 		      loc=-location - myp - j;
 		      if(Reads[r]->seq[loc]!=3-s[j])
 		      {
-			newone=true;
-			#pragma omp critical (c4) 
+			#pragma omp critical (c6) 
 			{
 			  Reads[r]->seq[loc] = 3-s[j];
-			  ++count;
+			  Reads[r]->seq[0] = phase ;
 			}
 		      }
 		    }
-		    if( newone )
-		    {
-		      #pragma omp critical (c5) 
-		      {					  
-			make(r,y);
-		      }
-		    }                                        
 		  }//if fits
 		  s[j]=tmp2;
 		}//for l2
@@ -404,8 +402,23 @@ void detect_and_correct(int pfx)
       scan->children[2]=0;
       scan->children[3]=0;
     }	
-    
   }
+  #pragma omp parallel
+  {
+    int y=omp_get_thread_num(),begin,end,r;
+    begin= y*N/cores+1 ;
+    end= y==cores-1 ? N :(y+1)*N/cores ;
+    for(r=begin;r<=end;++r)
+      if(Reads[r]->seq[0] == phase)
+      {
+	#pragma omp critical (c7) 
+	{
+	  ++count;
+	}	
+	make(r,y);
+      }
+  }    
+  
 }
 // ,,,,,,,,,,,,,,,,,,,This function frees the memory occupied by the subtires of the K_mer trie,,,,,,,,,,
 void free_trie()
@@ -532,7 +545,7 @@ int load_reads(char* filename)
 	  for (j = 0; s[j]!=0 && s[j]!='\r'; ++j,++k)
 	    Reads[N+i]->seq[k+1]=(s[j]=='N'?rand()%4:Index[s[j]-65]);
 	  for(input.getline(s,10000,'\n');l>0;input.getline(s,10000,'\n'),--l);
-	    make(N+i,0);
+	  make(N+i,0);
       }
       else
 	for(i=1;!input.eof();++i)
@@ -553,6 +566,7 @@ void Initialize()
 {
   int i,j;
   long n;
+  float freemem;
   N=0;
   Index[0] = 0;
   Index[2] = 1;
@@ -564,8 +578,21 @@ void Initialize()
   level=new node*[cores];
   prev=new node*[cores];
   first=new bool[cores];	
+
+  #ifdef __linux__
   sysinfo(&info);
-  p1_len=max(2.0,4-log2(info.freeram*info.mem_unit/1000000000)/2);
+  freemem = (float) info.freeram*(float) info.mem_unit/1000000000.0;
+  #endif
+
+  #ifdef __APPLE__
+  int32_t freepages, specpages;
+  size_t len = sizeof(freepages);
+  sysctlbyname("vm.page_free_count", &freepages, &len, NULL, 0);
+  sysctlbyname("vm.page_speculative_count", &specpages, &len, NULL, 0);
+  freemem = (((float) freepages+(float) specpages)*4096.0)/1000000000.0;
+  #endif
+  
+  p1_len=max(2.0,4-log2(freemem)/2);
   p1_num=1<<2*p1_len;
   p2_len=p1_len+cr;
   p2_num=1<<2*p2_len;
@@ -680,8 +707,22 @@ int main(int argc, char* argv[])
       cout<<"Processing "<<code(pc,pfx)<<" subtrie ...\r"<<flush;
       create_trie(pfx);
       detect_and_correct(pfx);
+      #ifdef __linux__
       sysinfo(&info);
       if(info.freeram < info.totalram/5)
+      #endif
+      #ifdef __APPLE__
+      char buf[100];
+      size_t buflen = 100;
+      long hwmem, freepages, specpages;
+      sysctlbyname("hw.memsize", &buf, &buflen, NULL, 0);
+      hwmem = atol(buf);
+      sysctlbyname("vm.page_free_count", &buf, &buflen, NULL, 0);
+      freepages = atol(buf);
+      sysctlbyname("vm.page_speculative_count", &buf, &buflen, NULL, 0);
+      specpages = atol(buf);
+      if ((freepages+specpages)*4096 < hwmem/5)
+      #endif
       {
 	free_trie();
 	malloc_trim(0);
@@ -691,7 +732,7 @@ int main(int argc, char* argv[])
     malloc_trim(0);
     time(&ctime);
     total+=count;
-    cout<<ctime-ptime<<" seconds elapsed.\t\n"<<count<<" corrections to reach "<<total<<" corrections.\n\n"<<flush;
+    cout<<ctime-ptime<<" seconds elapsed.\t\n"<<fixed<<count<<" corrections to reach "<<fixed<<total<<" corrections.\n\n"<<flush;
     Foot   -= decrs;
     MaxFoot-= decrs/2;
   }//phase
