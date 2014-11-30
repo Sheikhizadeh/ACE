@@ -6,7 +6,7 @@ ACE - Accurate Correction of Errors
 
 ACE corrects substitution errors in single/paired-read Illumina archives
 using a k-mer trie. It uses multiple cores when available, requiring OpenMP.
-ACE has been tested on Linux, but should compile on any system in which g++
+ACE has should be be compiled on any Linux and Mac OS X system in which g++
 and OpenMP are available.
 
 To compile the program:
@@ -20,8 +20,7 @@ To run ACE:
 
   ace G InputFile(s)
 
-where InputFile(s) can be either a FASTA or FASTQ file and G is the estimated genome 
-length (in bp). ACE produces file(s) with .corrected extension.
+where G is the estimated genome length (in bp) and InputFile(s) can be either a FASTA or FASTQ file(s). ACE produces file(s) with .corrected before their original extension.
 
 (C) 2014, Siavash Sheikhizadeh
 
