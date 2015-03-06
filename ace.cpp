@@ -612,7 +612,7 @@ int main(int argc, char* argv[])
 
       #ifdef __linux__
       sysinfo(&info);
-      if(info.freeram < 2*info.totalram/3) 
+      if(info.freeram < info.totalram*0.6) 
       #endif
 
       #ifdef __APPLE__
@@ -625,7 +625,7 @@ int main(int argc, char* argv[])
       freepages = atol(buf);
       sysctlbyname("vm.page_speculative_count", &buf, &buflen, NULL, 0);
       specpages = atol(buf);
-      if ((freepages+specpages)*4096 < hwmem/2) 
+      if ((freepages+specpages)*4096 < hwmem*0.6) 
       #endif
 
       {
