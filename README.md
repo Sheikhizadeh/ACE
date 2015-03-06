@@ -5,7 +5,7 @@ ACE - Accurate Correction of Errors
 -----------------------------------
 
 ACE corrects substitution errors in an Illumina archive using a k-mer trie. It uses multiple cores when available, requiring OpenMP. ACE has should be be compiled on any Linux and Mac OS X system in which g++ and OpenMP are available.It receives the genome length and the name of input and output files.
-To compile the program type:
+To compile the program run the provided makefile or type:
 
 g++ -D MAXREADLEN=??? -c ace.cpp -o ace.o -fopenmp
 
