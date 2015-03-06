@@ -546,10 +546,10 @@ void Initialize(char* argv[])
   size_t len = sizeof(freepages);
   sysctlbyname("vm.page_free_count", &freepages, &len, NULL, 0);
   sysctlbyname("vm.page_speculative_count", &specpages, &len, NULL, 0);
-  freemem = 1+(freepages+specpages)/1000000000*4096);
+  freemem = 1+(freepages+specpages)/1000000000*4096;
   #endif
   
-  p1_len=max(2.0,4.0-log2(freemem)/2);
+  p1_len=max(2.0,3.0-log2(freemem)/2);
   p1_num=1<<2*p1_len;
   p_len=p1_len+p2_len;
   p_num=1<<2*p_len;
