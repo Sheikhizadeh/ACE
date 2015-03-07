@@ -641,11 +641,6 @@ int main(int argc, char* argv[])
   finalize(argv);
   time(&ctime);
   cout<< "\nTotal Runtime : "<<ctime-ptime<< " seconds\n";
-  char line[100];
-  sprintf(line, "//proc//%d//status", getpid());
-  ifstream file(line);
-  for(file.getline(line,100,'\n');strncmp(line,"VmPeak:",7)!=0;file.getline(line,100,'\n'));
-  cout<< "Maximum space : "<<atol(line)/1024<<" Mb"<<endl;
   cout<<"===================== Success ====================\n"<<flush;
   return 1;
 }
