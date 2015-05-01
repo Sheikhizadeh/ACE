@@ -359,6 +359,7 @@ void free_trie()
 	delete root[i][j];
 	root[i][j]=0;
       }
+  malloc_trim(0);
 }
 
 // To write the corrected reads into the output file 
@@ -368,7 +369,7 @@ void write_reads(char* argv[])
   unsigned short x=3;
   char ch;
   char s[10000];
-  cout<<"Storing the corrected archive(s)...\n"<<flush;
+  cout<<"Storing the corrected archive...\n"<<flush;
   ifstream input(argv[2]);
   if(!input )
   {
@@ -608,30 +609,8 @@ int main(int argc, char* argv[])
       create_trie(pfx);
       cout<<"processing... "<<flush;
       detect_and_correct(pfx);
+      free_trie();
       cout<<"done.\n"<<flush;
-
-      #ifdef __linux__
-      sysinfo(&info);
-      if(info.freeram < info.totalram*0.6) 
-      #endif
-
-      #ifdef __APPLE__
-      char buf[100];
-      size_t buflen = 100;
-      long hwmem, freepages, specpages;
-      sysctlbyname("hw.memsize", &buf, &buflen, NULL, 0);
-      hwmem = atol(buf);
-      sysctlbyname("vm.page_free_count", &buf, &buflen, NULL, 0);
-      freepages = atol(buf);
-      sysctlbyname("vm.page_speculative_count", &buf, &buflen, NULL, 0);
-      specpages = atol(buf);
-      if ((freepages+specpages)*4096 < hwmem*0.6) 
-      #endif
-
-      {
-	free_trie();
-	malloc_trim(0);
-      }
     }//pfx
     time(&ctime);
     cout<<(ctime-ptime)<<" seconds elapsed.              \n\n"<<flush;
