@@ -18,7 +18,7 @@ To run ACE type:
 
 ./ace Genome_length(bp) Inputfile Outputfile
 
-
+DOI: 10.1093/bioinformatics/btv332
 (C) 2014, Siavash Sheikhizadeh
 
     Bioinformatics Group, Wageningen University
